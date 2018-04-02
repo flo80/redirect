@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"os"
 	"os/signal"
@@ -8,24 +9,22 @@ import (
 	redirect "github.com/flo80/redirect/redirectserver"
 )
 
-var _debug = false
-
 func main() {
-	// debugPtr := flag.Bool("debug", false, "Turn debugging log on")
+	listenAddress := flag.String("listen", ":8080", "Sets listen address (ip:port) for redirector; empty ip for all interfaces")
+	adminAddres := flag.String("admin", "", "Enable a REST API on an address (hostname:port)")
+
 	// configFilePtr := flag.String("config", "config.json", "filename of config file")
 	// noSaveFilePtr := flag.Bool("nosave", false, "Turns on saving of config file")
-	// flag.Parse()
-	// _debug = *debugPtr
+	flag.Parse()
 
-	server := redirect.NewServer(":8080", "localhost:8080")
+	var server *redirect.Server
+	if *adminAddres == "" {
+		server = redirect.NewServer(*listenAddress)
 
-	server.Redirects.AddRedirect("sonarr.poetscher.org", "/", "http://leuk.poetscher.org:8989/sonarr/")
-
-	json, err := server.Redirects.GetJSON()
-	if err != nil {
-		log.Fatalf("cannot get JSON: %v", err)
+	} else {
+		server = redirect.NewServer(*listenAddress, redirect.WithAdmin(*adminAddres))
 	}
-	log.Printf("JSON %s", json)
+	server.Redirects.AddRedirect("sonarr.poetscher.org", "/", "http://leuk.poetscher.org:8989/sonarr/")
 
 	// if saveConfig {
 	// 	defer func() {
