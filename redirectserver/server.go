@@ -21,14 +21,14 @@ type responseStatus struct {
 	Content []Redirect
 }
 
-// Redirector interface
+// Redirector interface.
 type Redirector interface {
-	GetAllRedirects() []Redirect
-	GetRedirectsForHost(hostname string) []Redirect
-	GetRedirect(hostname string, url string) []Redirect
-	AddRedirect(redirect Redirect) error
-	RemoveRedirect(redirect Redirect)
-	RemoveAllRedirectsForHost(redirect Redirect)
+	GetAllRedirects() []Redirect                        // Get all redirects known to redirects
+	GetRedirectsForHost(hostname string) []Redirect     // Get all redirects for a specific hostname
+	GetRedirect(hostname string, url string) []Redirect // Get redirect for a specific hostname & url (should be only one)
+	AddRedirect(redirect Redirect) error                // Add a new redirect for a hostname & url
+	RemoveRedirect(redirect Redirect)                   // Remove a redirect specific to hostname & url
+	RemoveAllRedirectsForHost(redirect Redirect)        // Remove all redirects for a hostname
 
 	GetTarget(string, string) (string, error)
 }
@@ -37,17 +37,17 @@ type Redirector interface {
 type Server struct {
 	listenAddress string         // ip:port to listen on, for all interfaces empty, e.g. ":8080"
 	adminHost     string         // hostname for administration of redirects (REST API at /redirects)
-	Redirects     Redirector     // storage of all redirects: hostname, URL, target
+	redirector    Redirector     // storage of all redirects: hostname, URL, target
 	mux           *http.ServeMux // mux for handlers
 	logger        *log.Logger    //logger to be used BUG: not yet implemented
 }
 
-//NewServer creates new server
+//NewServer creates new server, sets handle functions but does not start listening
 func NewServer(listenAddress string, opts ...Option) *Server {
 	s := &Server{
 		listenAddress: listenAddress,
 		adminHost:     "",
-		Redirects:     &mapRedirect{},
+		redirector:    &mapRedirect{},
 		mux:           http.DefaultServeMux,
 		logger:        log.New(ioutil.Discard, "redirectServer", log.LstdFlags),
 	}
@@ -92,9 +92,14 @@ func WithMux(mux *http.ServeMux) Option {
 	return func(s *Server) { s.mux = mux }
 }
 
+//WithMux allows to pass a custom mux
+func WithRedirector(redirector *Redirector) Option {
+	return func(s *Server) { s.redirector = *redirector }
+}
+
 // Handler for http.HandleFunc for redirects
 func (s *Server) Handler(w http.ResponseWriter, r *http.Request) {
-	target, err := s.Redirects.GetTarget(r.Host, r.URL.Path)
+	target, err := s.redirector.GetTarget(r.Host, r.URL.Path)
 	if err != nil {
 		http.NotFound(w, r)
 		log.Printf("no redirect found: %v", err)
@@ -107,16 +112,19 @@ func (s *Server) Handler(w http.ResponseWriter, r *http.Request) {
 
 // AdminAPI is the http.Handler for API
 // API supports following GET functions
-// /redirects/ping - only receive status ok
-// /redirects/list - list all redirects
-// /redirects/list?host=x - list all redirects for host x
-// /redirects/list?host=x&url=y - show redirect for host x with url y
-// /redirects/add?host=x&url=y&target=z - add or change redirect for host x with url y to target z
-// /redirects/delete?host=x&url=y - delete redirect for host x and url y
-// /redirects/deleteHost?host=x - delete all redirects for host x
+//
+//   /redirects/ping - only receive status ok
+//   /redirects/list - list all redirects
+//   /redirects/list?host=x - list all redirects for host x
+//   /redirects/list?host=x&url=y - show redirect for host x with url y
+//   /redirects/add?host=x&url=y&target=z - add or change redirect for host x with url y to target z
+//   /redirects/delete?host=x&url=y - delete redirect for host x and url y
+//   /redirects/deleteHost?host=x - delete all redirects for host x
 //
 // add, delete and deleteHost reply with a status
-//   Status: true iftrue//   Message: additional informatio,{}n
+//   Status: true iftrue
+//   Message: additional information
+//   Content: []Redirect
 func (s *Server) AdminAPI(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.NotFound(w, r)
@@ -125,7 +133,7 @@ func (s *Server) AdminAPI(w http.ResponseWriter, r *http.Request) {
 
 	_debug("received request %v", r)
 
-	red := s.Redirects
+	red := s.redirector
 
 	urlSplit := strings.Split(r.URL.Path, "/")
 	if len(urlSplit) != 3 {
