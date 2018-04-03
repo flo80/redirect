@@ -53,6 +53,7 @@ func NewServer(listenAddress string, opts ...Option) *Server {
 	s.mux.HandleFunc("/", s.Handler)
 
 	if s.adminHost != "" {
+		s.mux.HandleFunc(s.adminHost+"/redirects/ping", s.AdminAPI)
 		s.mux.HandleFunc(s.adminHost+"/redirects/list", s.AdminAPI)
 		s.mux.HandleFunc(s.adminHost+"/redirects/add", s.AdminAPI)
 		s.mux.HandleFunc(s.adminHost+"/redirects/delete", s.AdminAPI)
@@ -100,6 +101,7 @@ func (s *Server) Handler(w http.ResponseWriter, r *http.Request) {
 
 // AdminAPI is the http.Handler for API
 // API supports following GET functions
+// /redirects/ping - only receive status ok
 // /redirects/list - list all redirects
 // /redirects/list?host=x - list all redirects for host x
 // /redirects/list?host=x&url=y - show redirect for host x with url y
@@ -108,17 +110,19 @@ func (s *Server) Handler(w http.ResponseWriter, r *http.Request) {
 // /redirects/deleteHost?host=x - delete all redirects for host x
 //
 // add, delete and deleteHost reply with a status
-//   Status: "ok" or "not ok"
-//   Message: additional information
+//   Status: true iftrue//   Message: additional informatio,{}n
 func (s *Server) AdminAPI(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.NotFound(w, r)
 		return
 	}
 
+	_debug("received request %v", r)
+
 	type responseStatus struct {
-		Status  string
+		Status  bool
 		Message string
+		Content interface{}
 	}
 
 	red := s.Redirects
@@ -147,41 +151,45 @@ func (s *Server) AdminAPI(w http.ResponseWriter, r *http.Request) {
 		target = targets[0]
 	}
 
-	var response interface{}
+	var response responseStatus
+
+	_debug("parsed request %v %v %v %v", function, host, url, target)
 
 	switch function {
+	case "ping":
+		response = responseStatus{true, "pong", ""}
 	case "list":
 		if host == "" {
-			response = red.GetAllRedirects()
+			response = responseStatus{true, "all redirects", red.GetAllRedirects()}
 		} else if url == "" {
-			response = red.GetRedirectsForHost(host)
+			response = responseStatus{true, "redirects for host", red.GetRedirectsForHost(host)}
 		} else {
-			response = red.GetRedirect(host, url)
+			response = responseStatus{true, "redirects for host and url", red.GetRedirect(host, url)}
 		}
 	case "add":
 		if host == "" || url == "" || target == "" {
-			response = responseStatus{"not ok", "request malformed"}
+			response = responseStatus{false, "request malformed", ""}
 		} else {
 			err := red.AddRedirect(host, url, target)
 			if err != nil {
-				response = responseStatus{"not ok", err.Error()}
+				response = responseStatus{false, err.Error(), ""}
 			} else {
-				response = responseStatus{"ok", "redirect added"}
+				response = responseStatus{true, "redirect added", red.GetRedirect(host, url)}
 			}
 		}
 	case "delete":
 		if host == "" || url == "" {
-			response = responseStatus{"not ok", "request malformed"}
+			response = responseStatus{false, "request malformed", ""}
 		} else {
 			red.RemoveRedirect(host, url)
-			response = responseStatus{"ok", "redirect deleted"}
+			response = responseStatus{true, "redirect deleted", ""}
 		}
 	case "deleteHost":
 		if host == "" {
-			response = responseStatus{"not ok", "request malformed"}
+			response = responseStatus{false, "request malformed", ""}
 		} else {
 			red.RemoveRedirectHost(host)
-			response = responseStatus{"ok", "host deleted"}
+			response = responseStatus{true, "host deleted", ""}
 		}
 	default:
 		http.NotFound(w, r)

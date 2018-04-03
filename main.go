@@ -11,7 +11,7 @@ import (
 
 func main() {
 	listenAddress := flag.String("listen", ":8080", "Sets listen address (ip:port) for redirector; empty ip for all interfaces")
-	adminAddres := flag.String("admin", "", "Enable a REST API on an address (hostname:port)")
+	adminAddres := flag.String("admin", "", "Enable a REST API on a specific hostname (listen address has to cover this hostname))")
 
 	// configFilePtr := flag.String("config", "config.json", "filename of config file")
 	// noSaveFilePtr := flag.Bool("nosave", false, "Turns on saving of config file")
