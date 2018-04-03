@@ -1,7 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
+	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
@@ -12,29 +15,39 @@ import (
 func main() {
 	listenAddress := flag.String("listen", ":8080", "Sets listen address (ip:port) for redirector; empty ip for all interfaces")
 	adminAddres := flag.String("admin", "", "Enable a REST API on a specific hostname (listen address has to cover this hostname))")
-
-	// configFilePtr := flag.String("config", "config.json", "filename of config file")
-	// noSaveFilePtr := flag.Bool("nosave", false, "Turns on saving of config file")
+	redirectFile := flag.String("config", "redirects.json", "Save file for the redirector (loaded at beginning, saved at end)")
+	redirectFileIgnoreErr := flag.Bool("ignoreError", false, "Ignore errors when opening redirector file and start with empty redirector")
+	redirectNoSave := flag.Bool("noSave", false, "Do not save redirects into redirect file when closing server")
 	flag.Parse()
 
 	var server *redirect.Server
+	redirector := redirect.MapRedirect{}
+
+	if *redirectFile != "" {
+		err := mapRedirectorFromFile(*redirectFile, &redirector)
+		if err != nil {
+			if !*redirectFileIgnoreErr {
+				log.Fatalf("Could not create redirector: %v", err)
+			}
+			redirector = redirect.MapRedirect{}
+		}
+		if !*redirectNoSave {
+			defer func() {
+				err := SaveMapRedirectorToFile(*redirectFile, &redirector)
+				if err != nil {
+					log.Fatalf("could not save configuration file: %v", err)
+				}
+				log.Printf("configuration file %v saved", *redirectFile)
+			}()
+		}
+	}
+
 	if *adminAddres == "" {
-		server = redirect.NewServer(*listenAddress)
+		server = redirect.NewServer(*listenAddress, redirect.WithRedirector(&redirector))
 
 	} else {
-		server = redirect.NewServer(*listenAddress, redirect.WithAdmin(*adminAddres))
+		server = redirect.NewServer(*listenAddress, redirect.WithAdmin(*adminAddres), redirect.WithRedirector(&redirector))
 	}
-	server.Redirects.AddRedirect(redirect.Redirect{"sonarr.poetscher.org", "/", "http://leuk.poetscher.org:8989/sonarr/"})
-
-	// if saveConfig {
-	// 	defer func() {
-	// 		err := config.SaveToFile(configurationFile)
-	// 		if err != nil {
-	// 			log.Fatalf("could not save configuration file: %v", err)
-	// 		}
-	// 		log.Printf("configuration file %v saved", configurationFile)
-	// 	}()
-	// }
 
 	go func() {
 		err := server.StartServer()
@@ -51,4 +64,45 @@ func main() {
 	_ = <-c
 	log.Printf("server stopped")
 	return
+}
+
+//LoadFromFile loads configuration from a file (as json)
+func mapRedirectorFromFile(configFile string, redirector *redirect.MapRedirect) error {
+
+	file, err := os.Open(configFile)
+	if err != nil {
+		return fmt.Errorf("configuration file %v not found: %v", configFile, err)
+	}
+
+	decoder := json.NewDecoder(file)
+	err = decoder.Decode(redirector)
+	if err != nil {
+		return fmt.Errorf("could not parse configuration file: %v", err)
+	}
+	log.Printf("decoded configuration file into %t", redirector)
+
+	if err = file.Close(); err != nil {
+		return fmt.Errorf("could not close configuration file: %v ", err)
+	}
+	log.Printf("loaded configuration file %v", configFile)
+
+	return nil
+}
+
+//SaveMapRedirectorToFile saves configuration to a file (as json)
+func SaveMapRedirectorToFile(configFile string, redirector *redirect.MapRedirect) error {
+	log.Printf("Trying to save config to file: %v", configFile)
+
+	b, err := json.MarshalIndent(redirector, "", " ")
+
+	if err != nil {
+		return fmt.Errorf("could not marshall config file: %v", err)
+	}
+
+	err = ioutil.WriteFile(configFile, b, 0644)
+	if err != nil {
+		return fmt.Errorf("could not write config file: %v", err)
+	}
+	log.Printf("Config file %v written", configFile)
+	return nil
 }

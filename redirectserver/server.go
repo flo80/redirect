@@ -15,12 +15,6 @@ type Redirect struct {
 	Target   string //forwarding address
 }
 
-type responseStatus struct {
-	Status  bool
-	Message string
-	Content []Redirect
-}
-
 // Redirector interface.
 type Redirector interface {
 	GetAllRedirects() []Redirect                        // Get all redirects known to redirects
@@ -33,21 +27,29 @@ type Redirector interface {
 	GetTarget(string, string) (string, error)
 }
 
+type responseStatus struct {
+	Status  bool
+	Message string
+	Content []Redirect
+}
+
 // Server settings for redirect server
 type Server struct {
 	listenAddress string         // ip:port to listen on, for all interfaces empty, e.g. ":8080"
 	adminHost     string         // hostname for administration of redirects (REST API at /redirects)
-	redirector    Redirector     // storage of all redirects: hostname, URL, target
+	Redirects     Redirector     // storage of all redirects: hostname, URL, target
 	mux           *http.ServeMux // mux for handlers
 	logger        *log.Logger    //logger to be used BUG: not yet implemented
 }
 
 //NewServer creates new server, sets handle functions but does not start listening
 func NewServer(listenAddress string, opts ...Option) *Server {
+	redirector := MapRedirect{}
+
 	s := &Server{
 		listenAddress: listenAddress,
 		adminHost:     "",
-		redirector:    &mapRedirect{},
+		Redirects:     &redirector,
 		mux:           http.DefaultServeMux,
 		logger:        log.New(ioutil.Discard, "redirectServer", log.LstdFlags),
 	}
@@ -92,14 +94,14 @@ func WithMux(mux *http.ServeMux) Option {
 	return func(s *Server) { s.mux = mux }
 }
 
-//WithMux allows to pass a custom mux
-func WithRedirector(redirector *Redirector) Option {
-	return func(s *Server) { s.redirector = *redirector }
+//WithRedirector allows to pass a custom redirector
+func WithRedirector(redirector Redirector) Option {
+	return func(s *Server) { s.Redirects = redirector }
 }
 
 // Handler for http.HandleFunc for redirects
 func (s *Server) Handler(w http.ResponseWriter, r *http.Request) {
-	target, err := s.redirector.GetTarget(r.Host, r.URL.Path)
+	target, err := s.Redirects.GetTarget(r.Host, r.URL.Path)
 	if err != nil {
 		http.NotFound(w, r)
 		log.Printf("no redirect found: %v", err)
@@ -133,7 +135,7 @@ func (s *Server) AdminAPI(w http.ResponseWriter, r *http.Request) {
 
 	_debug("received request %v", r)
 
-	red := s.redirector
+	red := s.Redirects
 
 	urlSplit := strings.Split(r.URL.Path, "/")
 	if len(urlSplit) != 3 {

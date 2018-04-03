@@ -10,9 +10,9 @@ func _debug(format string, v ...interface{}) {
 	log.Printf("+DEBUG+ "+format, v...)
 }
 
-// map[hostname][url]->redirect
-type mapRedirect struct {
-	Hosts map[string]map[string]string
+// MapRedirect saves redirects in a map in memory
+type MapRedirect struct {
+	Hosts map[string]map[string]string // map[hostname][url]redirect
 }
 
 func convertMapToSlice(m map[string]map[string]string) []Redirect {
@@ -26,11 +26,11 @@ func convertMapToSlice(m map[string]map[string]string) []Redirect {
 	return r
 }
 
-func (red *mapRedirect) GetAllRedirects() []Redirect {
+func (red *MapRedirect) GetAllRedirects() []Redirect {
 	return convertMapToSlice(red.Hosts)
 }
 
-func (red *mapRedirect) GetRedirectsForHost(hostname string) []Redirect {
+func (red *MapRedirect) GetRedirectsForHost(hostname string) []Redirect {
 	_debug("requested redirects for hostname %v", hostname)
 
 	redirectHost, okHost := red.Hosts[hostname]
@@ -43,7 +43,7 @@ func (red *mapRedirect) GetRedirectsForHost(hostname string) []Redirect {
 	return convertMapToSlice(m)
 }
 
-func (red *mapRedirect) GetRedirect(hostname, url string) []Redirect {
+func (red *MapRedirect) GetRedirect(hostname, url string) []Redirect {
 	_debug("requested redirects for hostname %v url%v", hostname, url)
 
 	redirectHost, okHost := red.Hosts[hostname]
@@ -62,7 +62,7 @@ func (red *mapRedirect) GetRedirect(hostname, url string) []Redirect {
 }
 
 //GetTarget gets a redirect target for a host and URL
-func (red *mapRedirect) GetTarget(hostname string, url string) (string, error) {
+func (red *MapRedirect) GetTarget(hostname string, url string) (string, error) {
 	_debug("GetTarget call for %v %v", hostname, url)
 
 	target := red.GetRedirect(hostname, url)
@@ -76,11 +76,11 @@ func (red *mapRedirect) GetTarget(hostname string, url string) (string, error) {
 }
 
 // AddRedirect adds or changes a new host and/or URL to the redirections.
-func (red *mapRedirect) AddRedirect(redirect Redirect) error {
+func (red *MapRedirect) AddRedirect(redirect Redirect) error {
 	log.Printf("adding new entry %v%v -> %v", redirect.Hostname, redirect.URL, redirect.Target)
 
 	if red.Hosts == nil {
-		_debug("creating new mapRedirect.Hosts map in AddRedirect")
+		_debug("creating new MapRedirect.Hosts map in AddRedirect")
 		red.Hosts = make(map[string]map[string]string)
 	}
 
@@ -95,15 +95,15 @@ func (red *mapRedirect) AddRedirect(redirect Redirect) error {
 	return nil
 }
 
-// RemoveHost deletes all existing redirections for a host
-func (red *mapRedirect) RemoveAllRedirectsForHost(redirect Redirect) {
+// RemoveAllRedirectsForHost deletes all existing redirections for a host
+func (red *MapRedirect) RemoveAllRedirectsForHost(redirect Redirect) {
 	if red.Hosts != nil {
 		delete(red.Hosts, redirect.Hostname)
 	}
 }
 
-// RemoveURL deletes all existing redirections for a host
-func (red *mapRedirect) RemoveRedirect(redirect Redirect) {
+// RemoveRedirect deletes all existing redirections for a host
+func (red *MapRedirect) RemoveRedirect(redirect Redirect) {
 	if red.Hosts == nil {
 		return
 	}
@@ -118,11 +118,11 @@ func (red *mapRedirect) RemoveRedirect(redirect Redirect) {
 }
 
 //GetJSON of all redirects
-func (red *mapRedirect) GetJSON() ([]byte, error) {
-	return json.MarshalIndent(red, "", " ")
+func (red *MapRedirect) GetJSON() ([]byte, error) {
+	return json.MarshalIndent(red.Hosts, "", " ")
 }
 
 //SetJSON for all redirects
-func (red *mapRedirect) SetJSON(b []byte) error {
-	return json.Unmarshal(b, red)
+func (red *MapRedirect) SetJSON(b []byte) error {
+	return json.Unmarshal(b, red.Hosts)
 }
