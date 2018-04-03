@@ -8,32 +8,38 @@ import (
 	"strings"
 )
 
+//Redirect entry declaration
+type Redirect struct {
+	Hostname string //hostname of the redirector
+	URL      string //URL on the hostname
+	Target   string //forwarding address
+}
+
+type responseStatus struct {
+	Status  bool
+	Message string
+	Content []Redirect
+}
+
 // Redirector interface
 type Redirector interface {
-	GetAllRedirects() map[string]map[string]string
-	GetRedirectsForHost(string) map[string]string
-	GetRedirect(string, string) string
-	AddRedirect(string, string, string) error
-	RemoveRedirect(string, string)
-	RemoveRedirectHost(string)
+	GetAllRedirects() []Redirect
+	GetRedirectsForHost(hostname string) []Redirect
+	GetRedirect(hostname string, url string) []Redirect
+	AddRedirect(redirect Redirect) error
+	RemoveRedirect(redirect Redirect)
+	RemoveAllRedirectsForHost(redirect Redirect)
 
 	GetTarget(string, string) (string, error)
 }
 
 // Server settings for redirect server
 type Server struct {
-	// ip:port to listen on, for all interfaces empty, e.g. ":8080"
-	listenAddress string
-	// hostname for administration of redirects
-	adminHost string
-	// map of all redirects: hostname, URL -> target
-	Redirects Redirector
-
-	// mux for handlers
-	mux *http.ServeMux
-
-	//logger
-	logger *log.Logger
+	listenAddress string         // ip:port to listen on, for all interfaces empty, e.g. ":8080"
+	adminHost     string         // hostname for administration of redirects (REST API at /redirects)
+	Redirects     Redirector     // storage of all redirects: hostname, URL, target
+	mux           *http.ServeMux // mux for handlers
+	logger        *log.Logger    //logger to be used BUG: not yet implemented
 }
 
 //NewServer creates new server
@@ -119,12 +125,6 @@ func (s *Server) AdminAPI(w http.ResponseWriter, r *http.Request) {
 
 	_debug("received request %v", r)
 
-	type responseStatus struct {
-		Status  bool
-		Message string
-		Content interface{}
-	}
-
 	red := s.Redirects
 
 	urlSplit := strings.Split(r.URL.Path, "/")
@@ -157,7 +157,7 @@ func (s *Server) AdminAPI(w http.ResponseWriter, r *http.Request) {
 
 	switch function {
 	case "ping":
-		response = responseStatus{true, "pong", ""}
+		response = responseStatus{true, "pong", nil}
 	case "list":
 		if host == "" {
 			response = responseStatus{true, "all redirects", red.GetAllRedirects()}
@@ -168,28 +168,28 @@ func (s *Server) AdminAPI(w http.ResponseWriter, r *http.Request) {
 		}
 	case "add":
 		if host == "" || url == "" || target == "" {
-			response = responseStatus{false, "request malformed", ""}
+			response = responseStatus{false, "request malformed", nil}
 		} else {
-			err := red.AddRedirect(host, url, target)
+			err := red.AddRedirect(Redirect{host, url, target})
 			if err != nil {
-				response = responseStatus{false, err.Error(), ""}
+				response = responseStatus{false, err.Error(), nil}
 			} else {
 				response = responseStatus{true, "redirect added", red.GetRedirect(host, url)}
 			}
 		}
 	case "delete":
 		if host == "" || url == "" {
-			response = responseStatus{false, "request malformed", ""}
+			response = responseStatus{false, "request malformed", nil}
 		} else {
-			red.RemoveRedirect(host, url)
-			response = responseStatus{true, "redirect deleted", ""}
+			red.RemoveRedirect(Redirect{host, url, ""})
+			response = responseStatus{true, "redirect deleted", nil}
 		}
 	case "deleteHost":
 		if host == "" {
-			response = responseStatus{false, "request malformed", ""}
+			response = responseStatus{false, "request malformed", nil}
 		} else {
-			red.RemoveRedirectHost(host)
-			response = responseStatus{true, "host deleted", ""}
+			red.RemoveAllRedirectsForHost(Redirect{host, "", ""})
+			response = responseStatus{true, "host deleted", nil}
 		}
 	default:
 		http.NotFound(w, r)

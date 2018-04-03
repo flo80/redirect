@@ -7,10 +7,16 @@ import (
 	"net/http"
 )
 
+type redirect struct {
+	Hostname string //hostname of the redirector
+	URL      string //URL on the hostname
+	Target   string //forwarding address
+}
+
 type responseStatus struct {
 	Status  bool
 	Message string
-	Content interface{}
+	Content []redirect
 }
 
 func main() {
@@ -24,17 +30,20 @@ func main() {
 	}
 
 	paramNames := []string{"host", "url", "target"}
-	params := make([]parameter, flag.NArg()-1)
+	var params []parameter
 
 	l := flag.NArg() - 1
-	if len(paramNames) < l {
-		l = len(paramNames)
-	}
 
-	for i := 0; i < l; i++ {
-		params[i] = parameter{paramNames[i], flag.Arg(i + 1)}
-	}
+	if l > 1 {
+		if len(paramNames) < l {
+			l = len(paramNames)
+		}
+		params = make([]parameter, l)
 
+		for i := 0; i < l; i++ {
+			params[i] = parameter{paramNames[i], flag.Arg(i + 1)}
+		}
+	}
 	response, err := requestFromServer(*serverAddress, function, params)
 
 	if err != nil {

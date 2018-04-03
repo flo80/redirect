@@ -24,7 +24,7 @@ func main() {
 	} else {
 		server = redirect.NewServer(*listenAddress, redirect.WithAdmin(*adminAddres))
 	}
-	server.Redirects.AddRedirect("sonarr.poetscher.org", "/", "http://leuk.poetscher.org:8989/sonarr/")
+	server.Redirects.AddRedirect(redirect.Redirect{"sonarr.poetscher.org", "/", "http://leuk.poetscher.org:8989/sonarr/"})
 
 	// if saveConfig {
 	// 	defer func() {
