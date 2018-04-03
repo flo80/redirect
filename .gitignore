@@ -13,4 +13,7 @@
 # Project-local glide cache, RE: https://github.com/Masterminds/glide/issues/736
 .glide/
 
-config.json
+redirects.json
+
+# Executable file on MacOS / Linux
+redirect
