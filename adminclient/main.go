@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"os"
 )
 
 type redirect struct {
@@ -17,6 +18,17 @@ type responseStatus struct {
 	Status  bool
 	Message string
 	Content []redirect
+}
+
+func init() {
+
+	flag.Usage = func() {
+		fmt.Fprintf(flag.CommandLine.Output(), "Usage:\n\n\t%v -options command [hostname] [url] [target]\n\n\nOptions:\n\n", os.Args[0])
+
+		flag.PrintDefaults()
+		os.Exit(0)
+	}
+
 }
 
 func main() {
