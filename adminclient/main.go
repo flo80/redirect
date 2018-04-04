@@ -31,9 +31,18 @@ func init() {
 
 }
 
+//Build version (GIT SHA)
+var Build = "development"
+
 func main() {
 	serverAddress := flag.String("server", "localhost:8080", "Address of admin interface")
+	version := flag.Bool("version", false, "Only print version and quit")
 	flag.Parse()
+
+	if *version {
+		fmt.Printf("Version %v \n", Build)
+		return
+	}
 
 	function := "ping"
 

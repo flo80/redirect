@@ -17,3 +17,4 @@ redirects.json
 
 # Executable file on MacOS / Linux
 redirect
+bin/

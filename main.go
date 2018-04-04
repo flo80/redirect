@@ -12,13 +12,22 @@ import (
 	redirect "github.com/flo80/redirect/redirectserver"
 )
 
+//Build version (GIT SHA)
+var Build = "development"
+
 func main() {
 	listenAddress := flag.String("listen", ":8080", "Sets listen address (ip:port) for redirector; empty ip for all interfaces")
 	adminAddres := flag.String("admin", "", "Enable a REST API on a specific hostname (listen address has to cover this hostname))")
 	redirectFile := flag.String("config", "redirects.json", "Save file for the redirector (loaded at beginning, saved at end)")
 	redirectFileIgnoreErr := flag.Bool("ignoreError", false, "Ignore errors when opening redirector file and start with empty redirector")
 	redirectNoSave := flag.Bool("noSave", false, "Do not save redirects into redirect file when closing server")
+	version := flag.Bool("version", false, "Only print version and quit")
 	flag.Parse()
+
+	if *version {
+		fmt.Printf("Version %v \n", Build)
+		return
+	}
 
 	var server *redirect.Server
 	redirector := redirect.MapRedirect{}
@@ -79,7 +88,7 @@ func mapRedirectorFromFile(configFile string, redirector *redirect.MapRedirect) 
 	if err != nil {
 		return fmt.Errorf("could not parse configuration file: %v", err)
 	}
-	log.Printf("decoded configuration file into %t", redirector)
+	log.Printf("decoded configuration file")
 
 	if err = file.Close(); err != nil {
 		return fmt.Errorf("could not close configuration file: %v ", err)
