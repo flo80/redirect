@@ -8,6 +8,19 @@ _redirect_ is a pure 'redirecting server', i.e. all requests will receive a http
 
 ### Setup of _redirect_
 
+
+Testing of this setup is easiest with curl, e.g.
+```
+    # Start server on port 8080 (all interfaces) with admin interface on localhost
+    ./redirect -admin localhost -ignoreError &
+
+    # Add a redirect via REST API
+    curl "http://localhost:8080/redirects/add?host=www.example.com&url=/&target=http://www.google.com"
+
+    # Test redirect - should show redirect to www.google.com
+    curl --header 'Host: www.example.org' http://127.0.0.1:8080
+```
+
 ### Setup of DNS
 
 
