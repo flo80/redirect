@@ -14,6 +14,10 @@ BINARY_NAME_CLIENT=adminclient
 BUILD_VERSION=`git rev-parse --short HEAD`
 LDFLAGS=-ldflags "-X main.Build=$(BUILD_VERSION)"
 
+# Docker 
+DOCKER_TAG=flo80/redirect
+
+
 all: test build 
 
 test: 
@@ -59,3 +63,16 @@ clean_cross_compilation:
 	rm -f $(BINARY_PATH)/windows/$(BINARY_NAME_CLIENT).exe
 	rm -f $(BINARY_PATH)/mac/$(BINARY_NAME_SERVER)
 	rm -f $(BINARY_PATH)/mac/$(BINARY_NAME_CLIENT)
+
+
+docker_all: docker_clean docker docker_test
+
+docker:
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GOBUILD)  -ldflags "-X main.Build=$(BUILD_VERSION) -s" -o $(BINARY_PATH)/docker/$(BINARY_NAME_SERVER) -v 
+	docker build -t $(DOCKER_TAG) .
+	
+docker_test:
+	docker run -v `pwd`/testdata:/redirects -it -p 80:80 --rm $(DOCKER_TAG)
+
+docker_clean:
+	rm -f $(BINARY_PATH)/docker/$(BINARY_NAME_SERVER)
