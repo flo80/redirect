@@ -1,3 +1,6 @@
+*documentation currently out of date after change of package structure and flags*
+
+
 # Redirect
 _redirect_ is a pure 'redirecting server', i.e. all requests will receive a http redirect status. _redirect_ uses hostname and request URL to determine the redirect target. It can be used as a backend for URL shorteners or domain forwarders.
 
