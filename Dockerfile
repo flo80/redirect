@@ -3,7 +3,7 @@ FROM scratch
 COPY bin/docker/* /bin/
 VOLUME /redirects
 EXPOSE 80
-ENTRYPOINT [ "/bin/redirect" ]
+ENTRYPOINT [ "/bin/server" ]
 
 # Expects an existing config file, otherwise fails
-CMD [ "-config", "/redirects/redirects.json", "-listen", ":80", "-admin", "localhost"]
+CMD [ "-s", "/redirects/redirects.json", "-l", ":80", "-a", "localhost"]

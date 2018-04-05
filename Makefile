@@ -11,7 +11,7 @@ SOURCE_CLIENT=./cmd/client
 
 # Binary path and names
 BINARY_PATH=bin
-BINARY_NAME_SERVER=redirect
+BINARY_NAME_SERVER=server
 BINARY_NAME_CLIENT=client
 
 # Build flags
@@ -22,7 +22,7 @@ LDFLAGS=-ldflags "-X main.Build=$(BUILD_VERSION)"
 DOCKER_TAG=flo80/redirect
 
 run_server: build_server
-	$(BINARY_PATH)/$(BINARY_NAME_SERVER) -config testdata/redirects.json -admin localhost
+	$(BINARY_PATH)/$(BINARY_NAME_SERVER) -s testdata/redirects.json -a localhost --debug
 
 all: test build 
 
