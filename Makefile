@@ -21,6 +21,8 @@ LDFLAGS=-ldflags "-X main.Build=$(BUILD_VERSION)"
 # Docker 
 DOCKER_TAG=flo80/redirect
 
+run_server: build_server
+	$(BINARY_PATH)/$(BINARY_NAME_SERVER) -config testdata/redirects.json -admin localhost
 
 all: test build 
 
