@@ -1,18 +1,26 @@
-package redirectserver
+package storage
 
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+
+	log "github.com/sirupsen/logrus"
 )
 
-func _debug(format string, v ...interface{}) {
-	log.Printf("+DEBUG+ "+format, v...)
+// MapRedirect saves redirects in a map in memory
+// Per default it uses a ruslog default logger, this can be overwritten with NewMapRedirector(logger)
+type MapRedirect struct {
+	Hosts  map[string]map[string]string // map[hostname][url]redirect
+	logger *log.Logger                  // default logger
 }
 
-// MapRedirect saves redirects in a map in memory
-type MapRedirect struct {
-	Hosts map[string]map[string]string // map[hostname][url]redirect
+// NewMapRedirect allows to set the logger on the storage
+func NewMapRedirect(logger *log.Logger) MapRedirect {
+	r := MapRedirect{
+		Hosts:  nil,
+		logger: logger,
+	}
+	return r
 }
 
 func convertMapToSlice(m map[string]map[string]string) []Redirect {
@@ -31,7 +39,7 @@ func (red *MapRedirect) GetAllRedirects() []Redirect {
 }
 
 func (red *MapRedirect) GetRedirectsForHost(hostname string) []Redirect {
-	_debug("requested redirects for hostname %v", hostname)
+	log.Debugf("requested redirects for hostname %v", hostname)
 
 	redirectHost, okHost := red.Hosts[hostname]
 	if !okHost {
@@ -44,7 +52,7 @@ func (red *MapRedirect) GetRedirectsForHost(hostname string) []Redirect {
 }
 
 func (red *MapRedirect) GetRedirect(hostname, url string) []Redirect {
-	_debug("requested redirects for hostname %v url%v", hostname, url)
+	log.Debugf("requested redirects for hostname %v url%v", hostname, url)
 
 	redirectHost, okHost := red.Hosts[hostname]
 	if !okHost {
@@ -63,7 +71,7 @@ func (red *MapRedirect) GetRedirect(hostname, url string) []Redirect {
 
 //GetTarget gets a redirect target for a host and URL
 func (red *MapRedirect) GetTarget(hostname string, url string) (string, error) {
-	_debug("GetTarget call for %v %v", hostname, url)
+	log.Debugf("GetTarget call for %v %v", hostname, url)
 
 	target := red.GetRedirect(hostname, url)
 
@@ -71,7 +79,7 @@ func (red *MapRedirect) GetTarget(hostname string, url string) (string, error) {
 		return "", fmt.Errorf("no redirect foud for %v%v", hostname, url)
 	}
 
-	_debug("redirect found for host %v and url %v, target %v", hostname, url, target)
+	log.Debugf("redirect found for host %v and url %v, target %v", hostname, url, target)
 	return target[0].Target, nil
 }
 
@@ -80,13 +88,13 @@ func (red *MapRedirect) AddRedirect(redirect Redirect) error {
 	log.Printf("adding new entry %v%v -> %v", redirect.Hostname, redirect.URL, redirect.Target)
 
 	if red.Hosts == nil {
-		_debug("creating new MapRedirect.Hosts map in AddRedirect")
+		log.Debugf("creating new MapRedirect.Hosts map in AddRedirect")
 		red.Hosts = make(map[string]map[string]string)
 	}
 
 	_, exists := red.Hosts[redirect.Hostname]
 	if !exists {
-		_debug("creating new url map for host %v in AddRedirect", redirect.Hostname)
+		log.Debugf("creating new url map for host %v in AddRedirect", redirect.Hostname)
 		red.Hosts[redirect.Hostname] = make(map[string]string)
 	}
 

@@ -5,10 +5,14 @@ GOCLEAN=$(GOCMD) clean
 GOTEST=$(GOCMD) test
 GOGET=$(GOCMD) get
 
+# Source paths
+SOURCE_SERVER=./cmd/server
+SOURCE_CLIENT=./cmd/client
+
 # Binary path and names
 BINARY_PATH=bin
 BINARY_NAME_SERVER=redirect
-BINARY_NAME_CLIENT=adminclient
+BINARY_NAME_CLIENT=client
 
 # Build flags
 BUILD_VERSION=`git rev-parse --short HEAD`
@@ -25,9 +29,9 @@ test:
 
 build: build_server build_client 
 build_server:
-	$(GOBUILD) $(LDFLAGS) -o $(BINARY_PATH)/$(BINARY_NAME_SERVER) -v .
+	$(GOBUILD) $(LDFLAGS) -o $(BINARY_PATH)/$(BINARY_NAME_SERVER) -v $(SOURCE_SERVER)
 build_client:
-	$(GOBUILD) $(LDFLAGS) -o $(BINARY_PATH)/$(BINARY_NAME_CLIENT) -v ./adminclient 
+	$(GOBUILD) $(LDFLAGS) -o $(BINARY_PATH)/$(BINARY_NAME_CLIENT) -v $(SOURCE_CLIENT) 
  
 clean:
 	$(GOCLEAN)
@@ -39,20 +43,20 @@ clean:
 build_all_architectures: build_linux build_mac build_raspbian3 build_windows
 
 build_linux:
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -o $(BINARY_PATH)/linux/$(BINARY_NAME_SERVER) -v
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -o $(BINARY_PATH)/linux/$(BINARY_NAME_CLIENT) -v ./adminclient 
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -o $(BINARY_PATH)/linux/$(BINARY_NAME_SERVER) -v $(SOURCE_SERVER)
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -o $(BINARY_PATH)/linux/$(BINARY_NAME_CLIENT) -v $(SOURCE_CLIENT) 
 
 build_raspbian3:
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=5 $(GOBUILD) $(LDFLAGS) -o $(BINARY_PATH)/raspbian3/$(BINARY_NAME_SERVER) -v
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=5 $(GOBUILD) $(LDFLAGS) -o $(BINARY_PATH)/raspbian3/$(BINARY_NAME_CLIENT) -v ./adminclient 
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=5 $(GOBUILD) $(LDFLAGS) -o $(BINARY_PATH)/raspbian3/$(BINARY_NAME_SERVER) -v $(SOURCE_SERVER)
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=5 $(GOBUILD) $(LDFLAGS) -o $(BINARY_PATH)/raspbian3/$(BINARY_NAME_CLIENT) -v $(SOURCE_CLIENT) 
 
 build_windows:
-	GOOS=windows GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -o $(BINARY_PATH)/windows/$(BINARY_NAME_SERVER).exe -v
-	GOOS=windows GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -o $(BINARY_PATH)/windows/$(BINARY_NAME_CLIENT).exe -v ./adminclient 
+	GOOS=windows GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -o $(BINARY_PATH)/windows/$(BINARY_NAME_SERVER).exe -v $(SOURCE_SERVER)
+	GOOS=windows GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -o $(BINARY_PATH)/windows/$(BINARY_NAME_CLIENT).exe -v $(SOURCE_CLIENT) 
 
 build_mac:
-	GOOS=darwin GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -o $(BINARY_PATH)/mac/$(BINARY_NAME_SERVER) -v
-	GOOS=darwin GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -o $(BINARY_PATH)/mac/$(BINARY_NAME_CLIENT) -v ./adminclient 
+	GOOS=darwin GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -o $(BINARY_PATH)/mac/$(BINARY_NAME_SERVER) -v $(SOURCE_SERVER)
+	GOOS=darwin GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -o $(BINARY_PATH)/mac/$(BINARY_NAME_CLIENT) -v $(SOURCE_CLIENT) 
 
 clean_cross_compilation:
 	rm -f $(BINARY_PATH)/linux/$(BINARY_NAME_SERVER)
@@ -68,7 +72,7 @@ clean_cross_compilation:
 docker_all: docker_clean docker docker_test
 
 docker:
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GOBUILD)  -ldflags "-X main.Build=$(BUILD_VERSION) -s" -o $(BINARY_PATH)/docker/$(BINARY_NAME_SERVER) -v 
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GOBUILD)  -ldflags "-X main.Build=$(BUILD_VERSION) -s" -o $(BINARY_PATH)/docker/$(BINARY_NAME_SERVER) -v $(SOURCE_SERVER) 
 	docker build -t $(DOCKER_TAG) .
 	
 docker_test:

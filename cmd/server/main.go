@@ -5,11 +5,12 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/signal"
 
-	redirect "github.com/flo80/redirect/redirectserver"
+	redirect "github.com/flo80/redirect/pkg/redirect"
+	storage "github.com/flo80/redirect/pkg/storage"
+	log "github.com/sirupsen/logrus"
 )
 
 //Build version (GIT SHA)
@@ -24,13 +25,15 @@ func main() {
 	version := flag.Bool("version", false, "Only print version and quit")
 	flag.Parse()
 
+	log.SetLevel(log.DebugLevel)
+
 	if *version {
 		fmt.Printf("Version %v \n", Build)
 		return
 	}
 
 	var server *redirect.Server
-	redirector := redirect.MapRedirect{}
+	redirector := storage.MapRedirect{}
 
 	if *redirectFile != "" {
 		err := mapRedirectorFromFile(*redirectFile, &redirector)
@@ -38,7 +41,7 @@ func main() {
 			if !*redirectFileIgnoreErr {
 				log.Fatalf("Could not create redirector: %v", err)
 			}
-			redirector = redirect.MapRedirect{}
+			redirector = storage.MapRedirect{}
 		}
 		if !*redirectNoSave {
 			defer func() {
@@ -76,7 +79,7 @@ func main() {
 }
 
 //LoadFromFile loads configuration from a file (as json)
-func mapRedirectorFromFile(configFile string, redirector *redirect.MapRedirect) error {
+func mapRedirectorFromFile(configFile string, redirector *storage.MapRedirect) error {
 
 	file, err := os.Open(configFile)
 	if err != nil {
@@ -99,7 +102,7 @@ func mapRedirectorFromFile(configFile string, redirector *redirect.MapRedirect) 
 }
 
 //SaveMapRedirectorToFile saves configuration to a file (as json)
-func SaveMapRedirectorToFile(configFile string, redirector *redirect.MapRedirect) error {
+func SaveMapRedirectorToFile(configFile string, redirector *storage.MapRedirect) error {
 	log.Printf("Trying to save config to file: %v", configFile)
 
 	b, err := json.MarshalIndent(redirector, "", " ")

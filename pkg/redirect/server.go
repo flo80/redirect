@@ -1,57 +1,40 @@
-package redirectserver
+package server
 
 import (
 	"encoding/json"
-	"io/ioutil"
-	"log"
 	"net/http"
 	"strings"
+
+	"github.com/flo80/redirect/pkg/storage"
+	log "github.com/sirupsen/logrus"
 )
-
-//Redirect entry declaration
-type Redirect struct {
-	Hostname string //hostname of the redirector
-	URL      string //URL on the hostname
-	Target   string //forwarding address
-}
-
-// Redirector interface.
-type Redirector interface {
-	GetAllRedirects() []Redirect                        // Get all redirects known to redirects
-	GetRedirectsForHost(hostname string) []Redirect     // Get all redirects for a specific hostname
-	GetRedirect(hostname string, url string) []Redirect // Get redirect for a specific hostname & url (should be only one)
-	AddRedirect(redirect Redirect) error                // Add a new redirect for a hostname & url
-	RemoveRedirect(redirect Redirect)                   // Remove a redirect specific to hostname & url
-	RemoveAllRedirectsForHost(redirect Redirect)        // Remove all redirects for a hostname
-
-	GetTarget(string, string) (string, error)
-}
 
 type responseStatus struct {
 	Status  bool
 	Message string
-	Content []Redirect
+	Content []storage.Redirect
 }
 
 // Server settings for redirect server
 type Server struct {
-	listenAddress string         // ip:port to listen on, for all interfaces empty, e.g. ":8080"
-	adminHost     string         // hostname for administration of redirects (REST API at /redirects)
-	Redirects     Redirector     // storage of all redirects: hostname, URL, target
-	mux           *http.ServeMux // mux for handlers
-	logger        *log.Logger    //logger to be used BUG: not yet implemented
+	listenAddress      string         // ip:port to listen on, for all interfaces empty, e.g. ":8080"
+	adminHost          string         // hostname for administration of redirects (REST API at /redirects)
+	storage.Redirector                // storage of all redirects: hostname, URL, target
+	mux                *http.ServeMux // mux for handlers
+	logger             *log.Logger    //logger to be used BUG: not yet implemented
 }
 
-//NewServer creates new server, sets handle functions but does not start listening
+// NewServer creates new server, sets handle functions but does not start listening.
+// Per default it uses http.DefaultServeMux, a default ruslog logger and an empty MapRedirect for storage
 func NewServer(listenAddress string, opts ...Option) *Server {
-	redirector := MapRedirect{}
+	redirector := storage.MapRedirect{}
 
 	s := &Server{
 		listenAddress: listenAddress,
 		adminHost:     "",
-		Redirects:     &redirector,
+		Redirector:    &redirector,
 		mux:           http.DefaultServeMux,
-		logger:        log.New(ioutil.Discard, "redirectServer", log.LstdFlags),
+		logger:        &log.Logger{},
 	}
 
 	for _, opt := range opts {
@@ -95,13 +78,13 @@ func WithMux(mux *http.ServeMux) Option {
 }
 
 //WithRedirector allows to pass a custom redirector
-func WithRedirector(redirector Redirector) Option {
-	return func(s *Server) { s.Redirects = redirector }
+func WithRedirector(redirector storage.Redirector) Option {
+	return func(s *Server) { s.Redirector = redirector }
 }
 
 // Handler for http.HandleFunc for redirects
 func (s *Server) Handler(w http.ResponseWriter, r *http.Request) {
-	target, err := s.Redirects.GetTarget(r.Host, r.URL.Path)
+	target, err := s.Redirector.GetTarget(r.Host, r.URL.Path)
 	if err != nil {
 		http.NotFound(w, r)
 		log.Printf("no redirect found: %v", err)
@@ -133,9 +116,9 @@ func (s *Server) AdminAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_debug("received request %v", r)
+	log.Debugf("received request %v", r)
 
-	red := s.Redirects
+	red := s.Redirector
 
 	urlSplit := strings.Split(r.URL.Path, "/")
 	if len(urlSplit) != 3 {
@@ -163,7 +146,7 @@ func (s *Server) AdminAPI(w http.ResponseWriter, r *http.Request) {
 
 	var response responseStatus
 
-	_debug("parsed request %v %v %v %v", function, host, url, target)
+	log.Debugf("parsed request %v %v %v %v", function, host, url, target)
 
 	switch function {
 	case "ping":
@@ -180,7 +163,7 @@ func (s *Server) AdminAPI(w http.ResponseWriter, r *http.Request) {
 		if host == "" || url == "" || target == "" {
 			response = responseStatus{false, "request malformed", nil}
 		} else {
-			err := red.AddRedirect(Redirect{host, url, target})
+			err := red.AddRedirect(storage.Redirect{host, url, target})
 			if err != nil {
 				response = responseStatus{false, err.Error(), nil}
 			} else {
@@ -191,14 +174,14 @@ func (s *Server) AdminAPI(w http.ResponseWriter, r *http.Request) {
 		if host == "" || url == "" {
 			response = responseStatus{false, "request malformed", nil}
 		} else {
-			red.RemoveRedirect(Redirect{host, url, ""})
+			red.RemoveRedirect(storage.Redirect{host, url, ""})
 			response = responseStatus{true, "redirect deleted", nil}
 		}
 	case "deleteHost":
 		if host == "" {
 			response = responseStatus{false, "request malformed", nil}
 		} else {
-			red.RemoveAllRedirectsForHost(Redirect{host, "", ""})
+			red.RemoveAllRedirectsForHost(storage.Redirect{host, "", ""})
 			response = responseStatus{true, "host deleted", nil}
 		}
 	default:
@@ -206,7 +189,7 @@ func (s *Server) AdminAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_debug("sending response %v", response)
+	log.Debugf("sending response %v", response)
 	json.NewEncoder(w).Encode(response)
 
 }
