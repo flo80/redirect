@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 )
 
 type redirect struct {
@@ -69,8 +70,8 @@ func requestFromServer(function string, args []string) error {
 	}
 
 	if resp.StatusCode == http.StatusNotFound {
-		return fmt.Errorf("not found: %v", req.URL)
-
+		fmt.Printf("Server / API not found at %v \n\n", server)
+		os.Exit(1)
 	}
 
 	var response response
