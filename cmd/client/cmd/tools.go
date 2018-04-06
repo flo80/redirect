@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+
+	"github.com/spf13/viper"
 )
 
 type redirect struct {
@@ -45,10 +47,7 @@ func createParamsFromArgs(args []string) []parameter {
 }
 
 func requestFromServer(function string, args []string) error {
-	server, err := rootCmd.PersistentFlags().GetString("server")
-	if err != nil {
-		return fmt.Errorf("Server address not available: %v", err)
-	}
+	server := viper.GetString("server")
 
 	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://%v/redirects/%v", server, function), nil)
 	if err != nil {
@@ -83,11 +82,9 @@ func requestFromServer(function string, args []string) error {
 	}
 
 	return processResponse(&response)
-
 }
 
 func processResponse(response *response) error {
-
 	if !response.Status {
 		return fmt.Errorf("Operation was not sucessful on server, error %v", response.Message)
 	}
