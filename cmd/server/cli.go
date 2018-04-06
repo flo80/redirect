@@ -23,6 +23,13 @@ In the default settings, all redirects will be saved to a file 'redirects.json',
 To run in this setup, an initial 'redirects.json' is required. To generate one, the server can be started with 'server -f' and stopped again, this will produce an empty save file.`,
 	Version: Build,
 	Run: func(cmd *cobra.Command, args []string) {
+		config.adminAddress = viper.GetString("api")
+		config.debug = viper.GetBool("debug")
+		config.listenAddress = viper.GetString("listen")
+		config.redirectFile = viper.GetString("storage")
+		config.redirectFileIgnoreErr = viper.GetBool("force")
+		config.redirectNoSave = viper.GetBool("volatile")
+
 		runServer()
 	},
 }
@@ -40,13 +47,14 @@ func init() {
 	cobra.OnInitialize(initConfig)
 
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is $HOME/.server.yaml)")
-	rootCmd.PersistentFlags().StringVarP(&listenAddress, "listen", "l", ":8080", "Sets listen address (ip:port) for redirector; empty ip for all interfaces")
-	rootCmd.PersistentFlags().StringVarP(&adminAddress, "api", "a", "", "Enable HTTP API on a specific hostname (listen address has to cover this hostname)")
-	rootCmd.PersistentFlags().StringVarP(&redirectFile, "storage", "s", "redirects.json", "Save file for the redirector (loaded at start of server, saved at closing of server)")
-	rootCmd.PersistentFlags().BoolVarP(&redirectFileIgnoreErr, "force", "f", false, "Ignore load errors when opening redirector save file (starts with empty redirector), this can be useful for first setup of server")
-	rootCmd.PersistentFlags().BoolVar(&redirectNoSave, "volatile", false, "Do not save redirects when closing server")
-	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Enable debut output")
+	rootCmd.PersistentFlags().StringVarP(&config.listenAddress, "listen", "l", ":8080", "Sets listen address (ip:port) for redirector; empty ip for all interfaces")
+	rootCmd.PersistentFlags().StringVarP(&config.adminAddress, "api", "a", "", "Enable HTTP API on a specific hostname (listen address has to cover this hostname)")
+	rootCmd.PersistentFlags().StringVarP(&config.redirectFile, "storage", "s", "redirects.json", "Save file for the redirector (loaded at start of server, saved at closing of server)")
+	rootCmd.PersistentFlags().BoolVarP(&config.redirectFileIgnoreErr, "force", "f", false, "Ignore load errors when opening redirector save file (starts with empty redirector), this can be useful for first setup of server")
+	rootCmd.PersistentFlags().BoolVar(&config.redirectNoSave, "volatile", false, "Do not save redirects when closing server")
+	rootCmd.PersistentFlags().BoolVar(&config.debug, "debug", false, "Enable debut output")
 
+	viper.BindPFlags(rootCmd.PersistentFlags())
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -64,6 +72,7 @@ func initConfig() {
 
 		// Search config in home directory with name ".server" (without extension).
 		viper.AddConfigPath(home)
+		viper.AddConfigPath(".")
 		viper.SetConfigName(".server")
 	}
 

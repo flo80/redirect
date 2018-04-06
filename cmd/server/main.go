@@ -13,51 +13,51 @@ import (
 var Build = "development"
 
 // server settings
-var (
+var config struct {
 	listenAddress         string
 	adminAddress          string
 	redirectFile          string
 	redirectFileIgnoreErr bool
 	redirectNoSave        bool
 	debug                 bool
-)
+}
 
 func main() {
 	Execute()
 }
 
 func runServer() {
-	if debug {
+	if config.debug {
 		log.SetLevel(log.DebugLevel)
 	}
 
 	var server *redirect.Server
 	redirector := storage.MapRedirect{}
 
-	if redirectFile != "" {
-		err := mapRedirectorFromFile(redirectFile, &redirector)
+	if config.redirectFile != "" {
+		err := mapRedirectorFromFile(config.redirectFile, &redirector)
 		if err != nil {
-			if !redirectFileIgnoreErr {
+			if !config.redirectFileIgnoreErr {
 				log.Fatalf("Could not create redirector: %v", err)
 			}
 			redirector = storage.MapRedirect{}
 		}
-		if !redirectNoSave {
+		if !config.redirectNoSave {
 			defer func() {
-				err := SaveMapRedirectorToFile(redirectFile, &redirector)
+				err := SaveMapRedirectorToFile(config.redirectFile, &redirector)
 				if err != nil {
 					log.Fatalf("could not save redirector to file: %v", err)
 				}
-				log.Printf("redirector configuration file %v saved", redirectFile)
+				log.Printf("redirector configuration file %v saved", config.redirectFile)
 			}()
 		}
 	}
 
-	if adminAddress == "" {
-		server = redirect.NewServer(listenAddress, redirect.WithRedirector(&redirector))
+	if config.adminAddress == "" {
+		server = redirect.NewServer(config.listenAddress, redirect.WithRedirector(&redirector))
 
 	} else {
-		server = redirect.NewServer(listenAddress, redirect.WithAdmin(adminAddress), redirect.WithRedirector(&redirector))
+		server = redirect.NewServer(config.listenAddress, redirect.WithAdmin(config.adminAddress), redirect.WithRedirector(&redirector))
 	}
 
 	go func() {
