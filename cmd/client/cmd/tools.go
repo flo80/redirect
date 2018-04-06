@@ -66,7 +66,8 @@ func requestFromServer(function string, args []string) error {
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("could not send request: %v", err)
+		fmt.Printf("Request to %v could not be sent \n\n", server)
+		os.Exit(1)
 	}
 
 	if resp.StatusCode == http.StatusNotFound {
